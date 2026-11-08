@@ -64,13 +64,13 @@ it('leaves Android alone', function () {
         ->and(array_filter(navItems($screen), fn (array $item): bool => $item['presentation_only'] ?? false))->toBeEmpty();
 });
 
-it('puts Search first and the commit button last, presenter-only', function (string $root) {
+it('keeps the four real tabs first and adds Search and the commit button after them, presenter-only', function (string $root) {
     $items = navItems(Native::visit($root, platform: 'ios'));
 
-    expect(array_column($items, 'id'))->toBe(['search', 'log', 'notifications', 'remotes', 'profile', 'commit'])
-        ->and($items[0])->toMatchArray(['label' => 'Search', 'icon' => 'custom:search', 'presentation_only' => true])
-        ->and($items[5])->toMatchArray(['label' => 'Commit', 'presentation_only' => true])
-        ->and(array_filter(array_slice($items, 1, 4), fn (array $item): bool => $item['presentation_only'] ?? false))->toBeEmpty();
+    expect(array_column($items, 'id'))->toBe(['log', 'notifications', 'remotes', 'profile', 'search', 'commit'])
+        ->and($items[4])->toMatchArray(['label' => 'Search', 'icon' => 'custom:search', 'presentation_only' => true])
+        ->and($items[5])->toMatchArray(['label' => 'New commit', 'presentation_only' => true])
+        ->and(array_filter(array_slice($items, 0, 4), fn (array $item): bool => $item['presentation_only'] ?? false))->toBeEmpty();
 })->with(TabsLayout::Tabs);
 
 it('opens search and the compose sheet from every tab root', function (string $root) {
@@ -83,14 +83,23 @@ it('opens search and the compose sheet from every tab root', function (string $r
     expect(nodeByRef($screen, 'sheet')['props'])->toMatchArray(['visible' => true]);
 })->with(TabsLayout::Tabs);
 
-it('drops items a pushed screen cannot handle', function () {
+it('drops items a pushed screen cannot handle, without moving the real tabs', function () {
     // This device has neither search nor a composer.
     expect(array_column(navItems(Native::visit('/profile/device', platform: 'ios')), 'id'))
         ->toBe(['log', 'notifications', 'remotes', 'profile']);
 
     // A commit's page has both.
     expect(array_column(navItems(Native::visit('/log/commits/c1', platform: 'ios')), 'id'))
-        ->toBe(['search', 'log', 'notifications', 'remotes', 'profile', 'commit']);
+        ->toBe(['log', 'notifications', 'remotes', 'profile', 'search', 'commit']);
+});
+
+it('keeps the real tabs at the same positions whether or not the screen can search', function () {
+    $withSearch = array_column(navItems(Native::visit('/profile', platform: 'ios')), 'id');
+    $withoutSearch = array_column(navItems(Native::visit('/profile/device', platform: 'ios')), 'id');
+
+    expect($withSearch)->toContain('search')
+        ->and($withoutSearch)->not->toContain('search')
+        ->and(array_slice($withSearch, 0, 4))->toBe(array_slice($withoutSearch, 0, 4));
 });
 
 it('opens the commit a turned-down quote or reply was for from Notifications and Remotes, which show no commits', function (string $root, string $composer, string $key) {

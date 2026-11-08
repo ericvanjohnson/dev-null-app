@@ -22,8 +22,17 @@ func devnullSideRailIsCommitTab(_ tab: NativeTabDescriptor) -> Bool {
     tab.id.hasPrefix("commit#")
 }
 
+func devnullSideRailIsSearchTab(_ tab: NativeTabDescriptor) -> Bool {
+    tab.id.hasPrefix("search#")
+}
+
+/// Search sits at the top of the column. PHP sends it after Profile so the
+/// real tabs keep their positions (each tab's stack is keyed by its index),
+/// so it's moved up here, for drawing only.
 func devnullSideRailColumnTabs(_ tabs: [NativeTabDescriptor]) -> [NativeTabDescriptor] {
-    tabs.filter { !devnullSideRailIsCommitTab($0) }
+    let column = tabs.filter { !devnullSideRailIsCommitTab($0) }
+
+    return column.filter(devnullSideRailIsSearchTab) + column.filter { !devnullSideRailIsSearchTab($0) }
 }
 
 func devnullSideRailCommitTab(_ tabs: [NativeTabDescriptor]) -> NativeTabDescriptor? {

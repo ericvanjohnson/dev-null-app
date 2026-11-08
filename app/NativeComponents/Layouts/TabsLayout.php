@@ -25,7 +25,9 @@ use Native\Mobile\Facades\System;
  * On an iPad, or an unfolded phone, wide enough for it, iOS draws the tabs as
  * a column down the leading edge instead (the devnull:side-rail plugin), with
  * Search above them and a round button for a new commit below. Those two are
- * only for the column, and only on screens that can open them.
+ * only for the column, and only on screens that can open them. They come after
+ * Profile in the list, because iOS keeps each tab's stack by its position, so
+ * the four real tabs must sit at the same place on every screen.
  */
 class TabsLayout extends NativeLayout
 {
@@ -110,10 +112,6 @@ class TabsLayout extends NativeLayout
             ->activeColor(self::accent())
             ->labelVisibility('labeled');
 
-        if (System::isIos() && method_exists($screen, 'openSearch')) {
-            $tabBar->add(Tab::action('Search', ios: Lucide::Search->ios(), android: Lucide::Search->android())->id('search')->press('openSearch')->presentationOnly());
-        }
-
         $tabBar->add($log)
             ->add($notifications)
             ->add($remotes)
@@ -123,8 +121,12 @@ class TabsLayout extends NativeLayout
             return $tabBar;
         }
 
+        if (method_exists($screen, 'openSearch')) {
+            $tabBar->add(Tab::action('Search', ios: Lucide::Search->ios(), android: Lucide::Search->android())->id('search')->press('openSearch')->presentationOnly());
+        }
+
         if (method_exists($screen, 'composeInSheet')) {
-            $tabBar->add(Tab::action('Commit', ios: Lucide::Plus->ios(), android: Lucide::Plus->android())->id('commit')->press('composeInSheet')->presentationOnly());
+            $tabBar->add(Tab::action('New commit', ios: Lucide::Plus->ios(), android: Lucide::Plus->android())->id('commit')->press('composeInSheet')->presentationOnly());
         }
 
         return $tabBar->presentation(

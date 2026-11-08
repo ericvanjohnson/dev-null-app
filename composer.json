@@ -35,7 +35,7 @@
         "php": "^8.3",
         "codingwithrk/nativephp-social-auth": "^1.0",
         "devnull/nativephp-calls": "^1.0",
-        "devnull/side-rail": "*",
+        "devnull/side-rail": "^1.0",
         "laravel/boost": "^2.0",
         "laravel/framework": "^13.0",
         "laravel/tinker": "^3.0",
