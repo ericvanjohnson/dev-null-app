@@ -79,6 +79,7 @@ struct DevnullSideRail: View {
     let context: NativeTabPresentationContext
 
     @AppStorage("devnull.sideRail.expanded") private var isExpanded = false
+    @State private var windowControlsInset: CGFloat = 0
     @ObservedObject private var theme = NativeUITheme.shared
     @Environment(\.colorScheme) private var colorScheme
 
@@ -108,10 +109,12 @@ struct DevnullSideRail: View {
 
             toggle
         }
+        .padding(.top, windowControlsInset)
         .padding(.vertical, 18)
         .padding(.horizontal, 8)
         .frame(width: isExpanded ? Self.expandedWidth : Self.collapsedWidth, alignment: .leading)
         .frame(maxHeight: .infinity, alignment: .top)
+        .background(DevnullWindowControlsInset(inset: $windowControlsInset))
         .clipped()
         .background(theme.resolve(for: colorScheme).background.ignoresSafeArea())
         .overlay(alignment: .trailing) {
@@ -253,6 +256,63 @@ private struct DevnullSideRailItem: View {
             Circle()
                 .fill(Self.badgeColor)
                 .frame(width: 8, height: 8)
+        }
+    }
+}
+
+// MARK: - Window controls
+
+/// How far a windowed iPad's window controls (close, minimise and resize, at
+/// the window's top-leading corner) reach below the top safe area, so the
+/// column's first item sits under them rather than beneath them. iPadOS 26
+/// reports it as the safe area adapted to the window's corner. Zero full
+/// screen, on a phone, and before iPadOS 26.
+private struct DevnullWindowControlsInset: UIViewRepresentable {
+    @Binding var inset: CGFloat
+
+    func makeUIView(context: Context) -> Probe {
+        let probe = Probe()
+        probe.isUserInteractionEnabled = false
+        probe.report = { inset = $0 }
+
+        return probe
+    }
+
+    func updateUIView(_ probe: Probe, context: Context) {
+        probe.report = { inset = $0 }
+    }
+
+    final class Probe: UIView {
+        var report: ((CGFloat) -> Void)?
+        private var reported: CGFloat?
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            measure()
+        }
+
+        override func safeAreaInsetsDidChange() {
+            super.safeAreaInsetsDidChange()
+            measure()
+        }
+
+        private func measure() {
+            guard #available(iOS 26.0, *), window != nil else {
+                return
+            }
+
+            let adapted = directionalEdgeInsets(for: .safeArea(cornerAdaptation: .vertical)).top
+            let extra = max(0, (adapted - safeAreaInsets.top).rounded(.up))
+
+            guard extra != reported else {
+                return
+            }
+
+            reported = extra
+
+            DispatchQueue.main.async { [weak self] in
+                self?.report?(extra)
+            }
         }
     }
 }
