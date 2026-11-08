@@ -32,3 +32,26 @@ it('keeps the selected feed, its commits and pagination when returning to its to
         ->toBe(['c-newest', 'c-older']);
     expect(refreshesSent($screen))->toBe($requests);
 })->with(Log::Logs)->with(['ios', 'android']);
+
+it('takes the log you are on back to its top when its bottom tab is tapped again', function (string $platform) {
+    config(['devnull.url' => 'http://devnull.test']);
+    signIn();
+    holdRefreshes();
+    keep('log/latest', [
+        ...pageJson([
+            commitJson(['id' => 'c-newest', 'body' => 'The newest loaded commit']),
+        ], nextCursor: 'next-page', path: 'http://devnull.test/api/v1/log/latest'),
+        'newest_commit_id' => 'c-newest',
+    ]);
+
+    $screen = Native::visit('/log', platform: $platform);
+    tapLogTab($screen, 'latest');
+    $list = showingLog($screen)['id'];
+
+    $screen->press('backToTopOfLog')
+        ->assertSet('log', 'latest')
+        ->assertSet('nextCursor', 'next-page')
+        ->assertNoNavigation();
+
+    expect(showingLog($screen)['id'])->not->toBe($list);
+})->with(['ios', 'android']);

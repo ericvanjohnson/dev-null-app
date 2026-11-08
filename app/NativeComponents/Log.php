@@ -393,6 +393,14 @@ class Log extends NativeComponent
     }
 
     /**
+     * A tap on the Log tab while the log is showing: back to the top of the log you're on.
+     */
+    public function backToTopOfLog(): void
+    {
+        $this->show($this->log);
+    }
+
+    /**
      * The log you go to keeps the list its first few commits were drawn in,
      * which can't have been scrolled, and fills it. The log you leave starts
      * again at the top of a fresh one.

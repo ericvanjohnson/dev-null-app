@@ -77,13 +77,19 @@ class TabsLayout extends NativeLayout
         $notifications = Tab::link('Notifications', '/notifications', ios: Lucide::Bell->ios(), android: Lucide::Bell->android());
         $remotes = Tab::link('Remotes', '/remotes', ios: Lucide::MessagesSquare->ios(), android: Lucide::MessagesSquare->android());
 
+        $log = Tab::link('Log', '/log', ios: Lucide::GitCommitVertical->ios(), android: Lucide::GitCommitVertical->android());
+
         self::badge($notifications, app(Account::class)->unreadNotifications());
         self::badge($remotes, app(Account::class)->unreadRemotes());
+
+        if ($screen instanceof Log) {
+            $log->onReselect('backToTopOfLog');
+        }
 
         return TabBar::make()
             ->activeColor(self::accent())
             ->labelVisibility('labeled')
-            ->add(Tab::link('Log', '/log', ios: Lucide::GitCommitVertical->ios(), android: Lucide::GitCommitVertical->android()))
+            ->add($log)
             ->add($notifications)
             ->add($remotes)
             ->add(Tab::link('Profile', '/profile', ios: Lucide::UserRound->ios(), android: Lucide::UserRound->android()));
