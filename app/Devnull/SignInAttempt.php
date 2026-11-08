@@ -2,15 +2,16 @@
 
 namespace App\Devnull;
 
+use SensitiveParameter;
 use SensitiveParameterValue;
 
 /**
  * One go at signing in through dev-null.sh: OAuth's authorization code flow
  * with PKCE, devnull being the provider.
  *
- * The verifier and state are made fresh for each attempt and live only in
- * memory. The verifier is wrapped so it never shows up in a dump or a stack
- * trace, and can't be serialized to disk.
+ * The verifier and state are made fresh for each attempt, and kept outside
+ * memory only in the Keychain (see SignIn). The verifier is wrapped so it
+ * never shows up in a dump or a stack trace, and can't be serialized to disk.
  */
 final readonly class SignInAttempt
 {
@@ -21,6 +22,14 @@ final readonly class SignInAttempt
     public static function start(): self
     {
         return new self(new SensitiveParameterValue(self::base64Url(random_bytes(32))), self::base64Url(random_bytes(16)));
+    }
+
+    /**
+     * The attempt SignIn kept in the Keychain, after the app was started afresh.
+     */
+    public static function resume(#[SensitiveParameter] string $verifier, string $state): self
+    {
+        return new self(new SensitiveParameterValue($verifier), $state);
     }
 
     public function verifier(): string
@@ -46,13 +55,17 @@ final readonly class SignInAttempt
 
     /**
      * The page on dev-null.sh that signs you in with GitHub and approves this
-     * phone's key, then sends the browser back to the app with a code.
+     * phone's key, then sends the browser back to the app with a code. The
+     * app's name goes with the phone's, so Settings → Devices tells them apart,
+     * and its id, which stays when the name changes.
      */
-    public function authorizeUrl(string $baseUrl, string $fingerprint, string $deviceName): string
+    public function authorizeUrl(string $baseUrl, string $fingerprint, string $deviceName, string $appName, string $appId): string
     {
         return rtrim($baseUrl, '/').'/mobile/authorize?'.http_build_query([
             'fingerprint' => $fingerprint,
             'device_name' => $deviceName,
+            'app_name' => $appName,
+            'app_id' => $appId,
             'code_challenge' => $this->challenge(),
             'code_challenge_method' => 'S256',
             'state' => $this->state,

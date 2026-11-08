@@ -24,6 +24,7 @@ use App\Devnull\VoiceNotes;
 use App\Icons\Lucide;
 use App\Models\PendingWrite;
 use App\NativeComponents\Concerns\AttachesPhotos;
+use App\NativeComponents\Concerns\OpensHashtags;
 use App\NativeComponents\Concerns\OpensInTab;
 use App\NativeComponents\Concerns\PlaysVoiceNotes;
 use App\NativeComponents\Concerns\RecordsVoiceNotes;
@@ -71,12 +72,12 @@ use NativePHP\Clipboard\Facades\Clipboard;
  * it's still staged or rejected when you come back to the thread, and one
  * still on its way when the app closed goes again when it next opens. A
  * toast says why devnull didn't take one, wherever you are by then, with a
- * Retry of its own. Dragging a message sideways slides it out of the way
- * with the finger, its React and Reply growing in where it was, and Pin
- * for an org's maintainers; let go far enough and it stays open, or it
- * springs back. A double tap toggles a heart. React shows the web's quick
- * reactions in a bubble beside it, with More for the phone's own emoji
- * picker.
+ * Retry of its own. Pulling a message toward its edge replies to it: Reply
+ * comes in from the other side, with a light buzz once it's far enough,
+ * and letting go there sets the composer replying to it; it springs back
+ * either way. A double tap toggles a heart. A long press opens its menu (see
+ * MessageMenu), whose React shows the web's quick reactions in a bubble
+ * above it, with More for the phone's own emoji picker.
  *
  * An org's pinned messages show as the web shows them: the latest in a bar
  * over the top of the thread, which opens them all in a sheet, and a pin
@@ -103,6 +104,7 @@ use NativePHP\Clipboard\Facades\Clipboard;
 class Conversation extends NativeComponent
 {
     use AttachesPhotos;
+    use OpensHashtags;
     use OpensInTab;
     use PlaysVoiceNotes;
     use RecordsVoiceNotes;
@@ -132,19 +134,14 @@ class Conversation extends NativeComponent
     public const array QuickReactions = ['😂', '✅', '❤️'];
 
     /**
-     * The slot beside a bubble for its actions: React and Reply, and in an org room for Pin as well, whether it shows or
-     * not, as the web keeps it, so a pin arriving never rewraps a bubble. Then the gap between the slot and the bubble.
+     * How far a message is pulled toward its edge before letting go replies to it. Reply comes in over that distance from
+     * the other side of the thread.
      */
-    public const int ActionsWidth = 64;
-
-    public const int OrgActionsWidth = 98;
-
-    public const int ActionsGap = 4;
+    public const int ReplyPull = 64;
 
     /**
-     * A drag slides a message out of the way by up to its actions' slot, which then takes the room the bubble left. A
-     * short bubble slides less, so all but the last 20 points of it past the thread's edge stay on screen, guessing its
-     * width from its longest line: its padding, then an average character of 15-point text.
+     * A short bubble follows the pull only so far, so all but the last 20 points of it past the thread's edge stay on
+     * screen, guessing its width from its longest line: its padding, then an average character of 15-point text.
      */
     public const int BubblePadding = 24;
 
@@ -153,11 +150,6 @@ class Conversation extends NativeComponent
     public const int KeptOnScreen = 20;
 
     public const int LeastSlide = 16;
-
-    /**
-     * How long after a swipe brings a message's actions up a tap is taken as part of the swipe (see $actionsShownAt).
-     */
-    public const float SwipeTapWindow = 0.75;
 
     /**
      * The alert that asks before pinning, as the web's does, and its answers.
@@ -275,22 +267,8 @@ class Conversation extends NativeComponent
     public ?int $seenPingId = null;
 
     /**
-     * The message whose React, Reply and Pin show beside it, as the web shows them on hover. Dragging a message aside
-     * shows them, and dragging it back, a tap anywhere in the thread, or opening another message's puts them away.
-     */
-    public ?int $actionsForId = null;
-
-    /**
-     * When a drag last brought a message's actions up. On Android a drag that ends inside the bubble or its row could
-     * also land as a tap on them, a moment later once the double tap has had its chance, which would put the actions
-     * straight away again; a tap that close behind the drag is the drag's own.
-     */
-    public float $actionsShownAt = 0;
-
-    /**
-     * Where each message sits sideways, shared with the gesture area that drags it (see panFor()). They're kept across
-     * renders, so the area moves the same value the row and its buttons follow, and a new resting place from here
-     * springs into place rather than jumping.
+     * How far each message is pulled sideways, shared with the gesture area that pulls it (see panFor()). They're kept
+     * across renders, so a message that comes in or changes while you pull another doesn't cut the pull short.
      *
      * @var array<int, SharedValue>
      */
@@ -302,7 +280,7 @@ class Conversation extends NativeComponent
     public bool $sheetOpen = false;
 
     /**
-     * The message whose React shows the web's quick reactions in a bubble beside it.
+     * The message whose React shows the web's quick reactions in a bubble pointing at it.
      */
     public ?int $reactionsFor = null;
 
@@ -732,43 +710,8 @@ class Conversation extends NativeComponent
     }
 
     /**
-     * A message let go after a drag, where it came to rest. The gesture area moves it with the finger toward its edge,
-     * someone else's to the left and your own to the right, and springs it open or shut on release by how far it went
-     * and how fast. Open, its actions stay up and any other message's go away; shut, its own go away.
-     */
-    public function draggedMessage(int $id, float $x, float $y = 0): void
-    {
-        $message = $this->findMessage($id);
-
-        if ($message === null || ! $this->takesActions($message)) {
-            return;
-        }
-
-        $toward = ($message->userId === $this->me()?->id ? 1 : -1) * $x;
-
-        if ($toward >= $this->slideOf($message) / 2) {
-            $this->actionsForId = $id;
-            $this->actionsShownAt = self::now();
-        } elseif ($this->actionsForId === $id) {
-            $this->actionsForId = null;
-        }
-    }
-
-    /**
-     * A tap anywhere in the thread puts away the actions showing beside a message.
-     */
-    public function hideActions(): void
-    {
-        if (self::now() - $this->actionsShownAt < self::SwipeTapWindow) {
-            return;
-        }
-
-        $this->actionsForId = null;
-    }
-
-    /**
-     * React: the web's quick reactions and More, in a bubble beside the React that was pressed, above it unless there's
-     * no room. The message's options stay up underneath.
+     * React: the web's quick reactions and More, in a bubble above the message when React comes from its long-press
+     * menu, or beside React in the pinned sheet, and below either when there's no room above.
      */
     public function openReactions(int $id): void
     {
@@ -798,7 +741,6 @@ class Conversation extends NativeComponent
             return;
         }
 
-        $this->actionsForId = null;
         $this->reactionsFor = null;
         $this->reactsFromPinned = false;
         $this->sheetOpen = true;
@@ -825,7 +767,6 @@ class Conversation extends NativeComponent
             return;
         }
 
-        $this->actionsForId = null;
         $this->reactionsFor = null;
         $this->sheetOpen = false;
         $this->emojiPickerFor = $id;
@@ -870,29 +811,17 @@ class Conversation extends NativeComponent
         }
     }
 
+    /**
+     * Reply, from a message's long-press menu or the pinned sheet, or by pulling the message toward its edge past
+     * ReplyPull and letting go: the composer replies to it, and takes the keyboard if it hadn't already.
+     */
     public function reply(int $id): void
     {
         $this->replyToId = $id;
-        $this->actionsForId = null;
         $this->reactionsFor = null;
         $this->sheetOpen = false;
         $this->reactsFromPinned = false;
         $this->focusField(onlyIfIdle: true);
-    }
-
-    /**
-     * React, from the menu a long press opens: the quick reactions in their bubble when the message's options already
-     * show, so the bubble has React to point at, and otherwise the phone's emoji picker.
-     */
-    public function reactFromMenu(int $id): void
-    {
-        if ($this->actionsForId === $id) {
-            $this->openReactions($id);
-
-            return;
-        }
-
-        $this->openEmojiPicker($id);
     }
 
     /**
@@ -938,8 +867,9 @@ class Conversation extends NativeComponent
     }
 
     /**
-     * Pin or Unpin beside a message, for an org's maintainers. Pinning asks first, as the web does, since everyone in
-     * the org sees what's pinned, whatever history they were given, until you say not to ask again.
+     * Pin message or Unpin message, from a message's long-press menu, for an org's maintainers. Pinning asks first, as
+     * the web does, since everyone in the org sees what's pinned, whatever history they were given, until you say not to
+     * ask again.
      */
     public function togglePin(int $id): void
     {
@@ -948,8 +878,6 @@ class Conversation extends NativeComponent
         if ($message === null || ! $this->canPin() || ! $this->takesActions($message)) {
             return;
         }
-
-        $this->actionsForId = null;
 
         if ($this->isPinned($id)) {
             $this->unpinMessage($id);
@@ -992,7 +920,7 @@ class Conversation extends NativeComponent
     }
 
     /**
-     * Unpin, beside a pinned message in the thread or in the pinned sheet. The sheet closes once nothing is left in it.
+     * Unpin, from a pinned message's long-press menu or in the pinned sheet. The sheet closes once nothing is left in it.
      */
     public function unpinMessage(int $id): void
     {
@@ -1025,7 +953,7 @@ class Conversation extends NativeComponent
 
     /**
      * Leaves the emoji on the message, or takes it back, at once. If devnull says no, it goes back as it was. Picked in
-     * the bubble, the bubble closes and the message's options go away.
+     * the bubble, the bubble closes.
      */
     public function toggleReaction(int $id, string $emoji): void
     {
@@ -1035,7 +963,6 @@ class Conversation extends NativeComponent
         if ($this->reactionsFor !== null) {
             $this->reactionsFor = null;
             $this->reactsFromPinned = false;
-            $this->actionsForId = null;
         }
 
         if ($message === null || $message->isPending() || $message->isEvent() || $me === null || $this->thread?->access !== Thread::Open) {
@@ -1179,6 +1106,23 @@ class Conversation extends NativeComponent
 
         if (SiteLink::isWebUrl($url)) {
             Browser::inApp($url);
+        }
+    }
+
+    /**
+     * Opens a link in a message's body, by its place among the body's links: a
+     * commit or another page on dev/null the app has a screen for here in the
+     * app, anything else in the browser.
+     */
+    public function openMessageLink(int $id, int $index): void
+    {
+        $link = $this->findMessage($id)?->links()[$index] ?? null;
+        $screen = $link?->commit !== null ? '/commits/'.$link->commit : SiteLink::screen($link?->href);
+
+        if ($screen !== null) {
+            $this->openInTab($screen);
+        } elseif (SiteLink::isWebUrl($link?->href)) {
+            Browser::inApp((string) $link?->href);
         }
     }
 
@@ -1826,7 +1770,6 @@ class Conversation extends NativeComponent
             'quickReactions' => $this->quickReactions(),
             'canPush' => $thread !== null && $thread->access === Thread::Open,
             'canPin' => $this->canPin(),
-            'actionsWidth' => $this->actionsWidth(),
             'pinnedIds' => array_flip(array_map(fn (Message $message): int => $message->id, $this->pinned)),
             'longPins' => $this->longPins(),
             'placeholder' => $this->isOrg() ? 'Message '.($thread->orgName ?? 'the org') : 'Message @'.$this->username,
@@ -1838,45 +1781,34 @@ class Conversation extends NativeComponent
         ]);
     }
 
-    private function actionsWidth(): int
-    {
-        return $this->isOrg() ? self::OrgActionsWidth : self::ActionsWidth;
-    }
-
     /**
-     * Where a message rests sideways, as a value the gesture area drags and the row and its buttons follow: slid open
-     * toward its edge while its actions show, home otherwise. A message devnull doesn't have yet, or an org's event,
-     * doesn't move.
+     * How far a message is pulled sideways, as a value the gesture area moves and the message and its Reply follow. It
+     * rests at nothing, and the area springs it back there itself. A message devnull doesn't have yet, or an org's
+     * event, can't be pulled.
      */
-    private function panFor(Message $message, bool $mine): ?SharedValue
+    private function panFor(Message $message): ?SharedValue
     {
         if ($message->isPending() || $message->isEvent()) {
             return null;
         }
 
-        $rest = $this->actionsForId === $message->id ? ($mine ? 1 : -1) * $this->slideOf($message) : 0;
-        $pan = $this->pans[$message->id] ??= SharedValue::make($rest);
-        $pan->setValue($rest);
-
-        return $pan;
+        return $this->pans[$message->id] ??= SharedValue::make();
     }
 
     /**
-     * How far a drag slides a message toward its edge: the room its actions take, or for a short bubble only as far as
-     * keeps some of it on screen (see BubblePadding). Images are 240 points wide, so they slide the whole way.
+     * How far the message itself follows a pull: all the way for most, but a short bubble only as far as keeps some of it
+     * on screen (see BubblePadding). Images are 240 points wide, so they go the whole way.
      */
     private function slideOf(Message $message): int
     {
-        $room = $this->actionsWidth() + self::ActionsGap;
-
         if ($message->body === '') {
-            return $room;
+            return self::ReplyPull;
         }
 
         $longest = max(array_map(mb_strlen(...), explode("\n", $message->body)));
         $bubble = self::BubblePadding + (int) round($longest * self::BubbleCharacterWidth);
 
-        return min($room, max(self::LeastSlide, $bubble - self::KeptOnScreen));
+        return min(self::ReplyPull, max(self::LeastSlide, $bubble - self::KeptOnScreen));
     }
 
     /**
@@ -1981,8 +1913,8 @@ class Conversation extends NativeComponent
                 'endsRun' => true,
                 'status' => $message === $status ? $this->statusOf($message) : null,
                 'author' => $message->user ?? $this->authorOf($message->userId),
+                'pan' => $this->panFor($message),
                 'slide' => $this->slideOf($message),
-                'pan' => $this->panFor($message, $message->userId === $viewer?->id),
                 'menu' => MessageMenu::items($message, $answerable, $pinned),
                 'photosMenu' => $message->images === [] || $message->body === '' ? [] : MessageMenu::items($message, $answerable, $pinned, named: false),
             ];
@@ -2013,10 +1945,12 @@ class Conversation extends NativeComponent
     }
 
     /**
-     * What the status line says under the message: staged, pushed or pulled (with when, with one person), or who
-     * in an org has pulled it.
+     * What the status line says under the message, as the web words it: staged, pushed or pulled (with when, with one
+     * person). In an org it's "pulled by" and the avatars of who pulled it (see partials/pulled-by), or "everyone"
+     * once all of more than three have, with the second dot of your glyph in the first one's lane. Someone else's
+     * message keeps its time in front, and says nothing more until someone pulls it.
      *
-     * @return array{state: string, text: string}
+     * @return array{state: string, text: string, pulledBy?: list<User>, partnerLane?: int|string}
      */
     private function statusOf(Message $message): array
     {
@@ -2025,11 +1959,22 @@ class Conversation extends NativeComponent
         }
 
         if ($this->isOrg()) {
-            $pulled = array_values(array_filter($this->thread->members ?? [], fn (array $member): bool => $member['user']->id !== $message->userId && $member['read_through_id'] >= $message->id));
+            $mine = $message->userId === $this->me()?->id;
+            $readers = array_filter($this->thread->members ?? [], fn (array $member): bool => $member['user']->id !== $message->userId);
+            $pulled = array_values(array_column(array_filter($readers, fn (array $member): bool => $member['read_through_id'] >= $message->id), 'user'));
 
-            return $pulled === []
-                ? ['state' => 'pushed', 'text' => $message->time().' · pushed']
-                : ['state' => 'pulled', 'text' => $message->time().' · pulled by '.implode(', ', array_map(fn (array $member): string => $member['user']->handle(), array_slice($pulled, 0, 5))).(count($pulled) > 5 ? ' +'.(count($pulled) - 5) : '')];
+            if ($pulled === []) {
+                return ['state' => 'pushed', 'text' => $mine ? 'pushed' : $message->time()];
+            }
+
+            $everyone = count($pulled) === count($readers) && count($readers) > 3;
+
+            return [
+                'state' => 'pulled',
+                'text' => ($mine ? '' : $message->time().' · ').'pulled by'.($everyone ? ' everyone' : ''),
+                'pulledBy' => $everyone ? [] : $pulled,
+                'partnerLane' => $pulled[0]->lane(),
+            ];
         }
 
         $pulledAt = $this->thread?->partnerReadAt;

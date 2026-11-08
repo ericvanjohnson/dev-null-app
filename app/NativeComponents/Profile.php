@@ -35,6 +35,7 @@ use Native\Mobile\Edge\NativeComponent;
 use Native\Mobile\Events\Alert\ButtonPressed;
 use Native\Mobile\Facades\Browser;
 use Native\Mobile\Facades\Dialog;
+use Native\Mobile\Facades\Share;
 
 /**
  * A developer's profile: who they are on GitHub, their counts and activity,
@@ -45,13 +46,15 @@ use Native\Mobile\Facades\Dialog;
  * on the web: the one who blocked is told so, the other only that it isn't
  * available. devnull says which by its code (see ErrorCode).
  *
- * Someone else's profile has the web's safety menu in its nav bar: Mute or
- * Unmute, and Block, or on a profile you blocked only Unblock. Each asks
- * first, then changes straight away, and goes back if devnull says no.
+ * Every profile can be shared: Share profile hands its link to the phone's
+ * share sheet. Someone else's has it first in a ⋯ in the nav bar, then the
+ * web's safety menu: Mute or Unmute, and Block, or on a profile you blocked
+ * only Unblock. Each asks first, then changes straight away, and goes back if
+ * devnull says no.
  *
  * The Profile tab shows your own, with no username in the route. Like the web,
- * your own profile swaps Follow for "Edit on GitHub", and its nav bar leads to
- * your account.
+ * your own profile swaps Follow for "Edit on GitHub", and its nav bar has
+ * Share profile, then your starred commits and your account.
  *
  * It opens on the profile as it was last time, or opened from a commit, on
  * what the commit knew of its author, then asks devnull again behind it. The
@@ -179,27 +182,49 @@ class Profile extends NativeComponent
         if ($this->isMe()) {
             return NavBarOptions::make()
                 ->action(
+                    NavAction::make('scheduled')
+                        ->icon(ios: Lucide::CalendarDays->ios(), android: Lucide::CalendarDays->android())
+                        ->a11yLabel('Scheduled commits')
+                        ->press('openScheduledCommits'),
+                )
+                ->action(
                     NavAction::make('starred')
                         ->icon(ios: Lucide::Star->ios(), android: Lucide::Star->android())
                         ->a11yLabel('Starred')
                         ->press('openStarred'),
                 )
                 ->action(
-                    NavAction::make('account')
-                        ->icon(ios: Lucide::Settings2->ios(), android: Lucide::Settings2->android())
-                        ->a11yLabel('Account')
-                        ->press('openAccount'),
+                    NavAction::make('more')
+                        ->icon(ios: Lucide::Ellipsis->ios(), android: Lucide::Ellipsis->android())
+                        ->a11yLabel('More options')
+                        ->items([
+                            $this->shareAction()->label('Share profile'),
+                            NavAction::make('account')
+                                ->label('Account')
+                                ->icon(ios: Lucide::Settings2->ios(), android: Lucide::Settings2->android())
+                                ->press('openAccount'),
+                        ]),
                 );
         }
 
-        $items = $this->safetyActions();
-
-        return $items === [] ? null : NavBarOptions::make()->action(
-            NavAction::make('safety')
+        return NavBarOptions::make()->action(
+            NavAction::make('more')
                 ->icon(ios: Lucide::Ellipsis->ios(), android: Lucide::Ellipsis->android())
                 ->a11yLabel('More options for @'.$this->username)
-                ->items($items),
+                ->items([$this->shareAction()->label('Share profile'), ...$this->safetyActions()]),
         );
+    }
+
+    /**
+     * Share profile, under the share shape each phone uses (Lucide's share on
+     * iOS, share-2 on Android), first in the ⋯ of every profile. It's always
+     * there, as the link needs nothing but the username.
+     */
+    private function shareAction(): NavAction
+    {
+        return NavAction::make('share')
+            ->icon(ios: Lucide::Share->ios(), android: Lucide::Share2->android())
+            ->press('shareProfile');
     }
 
     /**
@@ -481,6 +506,15 @@ class Profile extends NativeComponent
         $this->refreshProfile(showNewer: true);
     }
 
+    /**
+     * Share profile: the profile's link in the share sheet, which has Copy, and AirDrop and Messages besides. It
+     * takes the link devnull sends, or makes the web's own when there isn't one yet.
+     */
+    public function shareProfile(): void
+    {
+        Share::url('', '', $this->profile?->user->htmlUrl ?? rtrim((string) config('devnull.url'), '/')."/@{$this->username}");
+    }
+
     public function isMe(): bool
     {
         return $this->username !== '' && $this->me()?->username === $this->username;
@@ -544,7 +578,7 @@ class Profile extends NativeComponent
     }
 
     /**
-     * Your scheduled commits, beneath this tab, from the calendar beside Edit on GitHub.
+     * Your scheduled commits, beneath this tab, from the calendar in your profile's nav bar.
      */
     public function openScheduledCommits(): void
     {
@@ -655,10 +689,17 @@ class Profile extends NativeComponent
 
     /**
      * A profile across a block has its own page, as on the web, whatever devnull's message says. devnull sends who
-     * you blocked with it, for the page's name and avatar.
+     * you blocked with it, for the page's name and avatar. A handle no user has may be an organization's, which shares
+     * its link on the web, so until devnull has sent anything for it, the organization's screen takes this one's place.
      */
     protected function refused(ApiException $exception): bool
     {
+        if ($exception->status === 404 && ! $this->commitsLoaded && ($this->profile === null || $this->sketched)) {
+            $this->replace($this->tabRoot().'/organizations/'.rawurlencode($this->username));
+
+            return true;
+        }
+
         if ($exception->is(ErrorCode::UserBlocked)) {
             if ($exception->user !== null && $exception->user->username === $this->username) {
                 $this->profile = new ProfileData($exception->user);

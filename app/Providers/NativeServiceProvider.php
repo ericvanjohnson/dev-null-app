@@ -8,8 +8,10 @@ use Illuminate\Support\ServiceProvider;
 use Native\Mobile\Providers\BrowserServiceProvider;
 use Native\Mobile\Providers\CameraServiceProvider;
 use Native\Mobile\Providers\MicrophoneServiceProvider;
+use Native\Mobile\Providers\PushNotificationsServiceProvider;
 use Native\Mobile\Providers\SecureStorageServiceProvider;
 use Native\Mobile\Providers\ShareServiceProvider;
+use Native\Mobile\Skia\SkiaServiceProvider;
 use Native\Mobile\UI\NativeUIServiceProvider;
 use NativePHP\Clipboard\ClipboardServiceProvider;
 use NativePHP\MediaPlayer\MediaPlayerServiceProvider;
@@ -53,6 +55,7 @@ class NativeServiceProvider extends ServiceProvider
             BrowserServiceProvider::class,
             CameraServiceProvider::class,
             MicrophoneServiceProvider::class,
+            PushNotificationsServiceProvider::class,
             MediaPlayerServiceProvider::class,
             SecureStorageServiceProvider::class,
             ShareServiceProvider::class,
@@ -60,6 +63,7 @@ class NativeServiceProvider extends ServiceProvider
             ToastKitServiceProvider::class,
             ClipboardServiceProvider::class,
             CallsServiceProvider::class,
+            SkiaServiceProvider::class,
             ...(config('devnull.apple_sign_in') ? [NativephpSocialAuthServiceProvider::class] : []),
         ];
     }
