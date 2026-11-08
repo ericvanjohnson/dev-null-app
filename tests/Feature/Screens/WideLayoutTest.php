@@ -102,6 +102,13 @@ it('keeps the real tabs at the same positions whether or not the screen can sear
         ->and(array_slice($withSearch, 0, 4))->toBe(array_slice($withoutSearch, 0, 4));
 });
 
+it('hides the Log nav bar search and compose while the side rail shows them', function () {
+    $actions = findNodes(Native::visit('/log', platform: 'ios')->tree(), fn (array $node): bool => ($node['type'] ?? null) === 'top_bar_action');
+
+    expect(array_column(array_column($actions, 'props'), 'hidden_with_tab_presentation', 'id'))
+        ->toBe(['search' => true, 'compose' => true]);
+});
+
 it('opens the commit a turned-down quote or reply was for from Notifications and Remotes, which show no commits', function (string $root, string $composer, string $key) {
     $write = PendingWrite::query()->create([
         'user_id' => userJson()['id'],

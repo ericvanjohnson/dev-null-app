@@ -326,7 +326,8 @@ class Log extends NativeComponent
     }
 
     /**
-     * Search, as the web's phone header has it, then a new commit.
+     * Search, as the web's phone header has it, then a new commit. The side
+     * rail has both, so they step aside while it shows.
      */
     public function navigationOptions(): ?NavBarOptions
     {
@@ -335,13 +336,15 @@ class Log extends NativeComponent
                 NavAction::make('search')
                     ->icon(ios: Lucide::Search->ios(), android: Lucide::Search->android())
                     ->a11yLabel('Search')
-                    ->press('openSearch'),
+                    ->press('openSearch')
+                    ->hiddenWithTabPresentation(),
             )
             ->action(
                 NavAction::make('compose')
                     ->icon(ios: Lucide::SquarePen->ios(), android: Lucide::SquarePen->android())
                     ->a11yLabel('New commit')
-                    ->press('composeInSheet'),
+                    ->press('composeInSheet')
+                    ->hiddenWithTabPresentation(),
             );
     }
 
