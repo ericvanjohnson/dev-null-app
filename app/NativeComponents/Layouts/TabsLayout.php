@@ -12,13 +12,20 @@ use Native\Mobile\Edge\Layouts\Builders\NavBar;
 use Native\Mobile\Edge\Layouts\Builders\Tab;
 use Native\Mobile\Edge\Layouts\Builders\TabBar;
 use Native\Mobile\Edge\Layouts\NativeLayout;
+use Native\Mobile\Edge\Layouts\TabPresentationPlacement;
 use Native\Mobile\Edge\NativeComponent;
+use Native\Mobile\Facades\System;
 
 /**
  * The top-level sections: Log, Notifications, Remotes and your Profile, with
  * the icons of the web's nav, picked out in the colour you chose for your lane.
  * Notifications and Remotes wear a badge with the unread count devnull last
  * gave. Starred opens from your own profile.
+ *
+ * On an iPad, or an unfolded phone, wide enough for it, iOS draws the tabs as
+ * a column down the leading edge instead (the devnull:side-rail plugin), with
+ * Search above them and a round button for a new commit below. Those two are
+ * only for the column, and only on screens that can open them.
  */
 class TabsLayout extends NativeLayout
 {
@@ -26,6 +33,19 @@ class TabsLayout extends NativeLayout
      * Each tab's URI. Commits and profiles open beneath the one they were tapped in.
      */
     public const array Tabs = ['/log', '/notifications', '/remotes', '/profile'];
+
+    /**
+     * The side rail plugin's presentation.
+     */
+    public const string SideRail = 'devnull:side-rail';
+
+    /**
+     * The smallest window, in points, that gets the side rail. Narrower or
+     * shorter than this keeps the tab bar along the bottom.
+     */
+    public const int WideMinimumWidth = 900;
+
+    public const int WideMinimumHeight = 600;
 
     /**
      * The icon and "/dev/null" wordmark as the web's MobileHeader draws them, 105 x 28pt.
@@ -86,13 +106,35 @@ class TabsLayout extends NativeLayout
             $log->onReselect('backToTopOfLog');
         }
 
-        return TabBar::make()
+        $tabBar = TabBar::make()
             ->activeColor(self::accent())
-            ->labelVisibility('labeled')
-            ->add($log)
+            ->labelVisibility('labeled');
+
+        if (System::isIos() && method_exists($screen, 'openSearch')) {
+            $tabBar->add(Tab::action('Search', ios: Lucide::Search->ios(), android: Lucide::Search->android())->id('search')->press('openSearch')->presentationOnly());
+        }
+
+        $tabBar->add($log)
             ->add($notifications)
             ->add($remotes)
             ->add(Tab::link('Profile', '/profile', ios: Lucide::UserRound->ios(), android: Lucide::UserRound->android()));
+
+        if (! System::isIos()) {
+            return $tabBar;
+        }
+
+        if (method_exists($screen, 'composeInSheet')) {
+            $tabBar->add(Tab::action('Commit', ios: Lucide::Plus->ios(), android: Lucide::Plus->android())->id('commit')->press('composeInSheet')->presentationOnly());
+        }
+
+        return $tabBar->presentation(
+            self::SideRail,
+            ['accent' => self::accent(), 'expandLabel' => 'Expand', 'collapseLabel' => 'Collapse'],
+            TabPresentationPlacement::Leading,
+            self::WideMinimumWidth,
+            self::WideMinimumHeight,
+            keepsOnPush: true,
+        );
     }
 
     private static function badge(Tab $tab, int $unread): void

@@ -1,6 +1,7 @@
 <native:column class="w-full h-full bg-theme-background">
     @include('native.partials.refresh-failed')
     @include('native.partials.commit-sheet')
+    @include('native.partials.image-viewer')
     @include('native.partials.live-stream-sheet')
     @include('native.partials.stargazers-sheet')
 

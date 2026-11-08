@@ -598,7 +598,7 @@ trait ShowsCommits
         return null;
     }
 
-    private function shownCommit(string $id): ?Commit
+    protected function shownCommit(string $id): ?Commit
     {
         foreach ($this->everyShownCommit() as $commit) {
             if ($commit->id === $id) {

@@ -15,9 +15,9 @@ use App\Devnull\Toasts;
 use App\Icons\Lucide;
 use App\NativeComponents\Concerns\DrawsSkeletonFirst;
 use App\NativeComponents\Concerns\OffersPush;
+use App\NativeComponents\Concerns\OpensCommitSheet;
 use App\NativeComponents\Concerns\OpensInTab;
 use App\NativeComponents\Concerns\RefreshesInBackground;
-use App\NativeComponents\Concerns\SyncsOutbox;
 use App\NativeComponents\Concerns\TalksToDevnull;
 use App\NativeComponents\Concerns\WatchesForCalls;
 use App\NativeComponents\Concerns\WritesInBackground;
@@ -64,9 +64,9 @@ class Remotes extends NativeComponent
 {
     use DrawsSkeletonFirst;
     use OffersPush;
+    use OpensCommitSheet;
     use OpensInTab;
     use RefreshesInBackground;
-    use SyncsOutbox;
     use TalksToDevnull;
     use WatchesForCalls;
     use WritesInBackground;

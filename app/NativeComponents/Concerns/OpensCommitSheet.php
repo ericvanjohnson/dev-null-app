@@ -411,6 +411,17 @@ trait OpensCommitSheet
     }
 
     /**
+     * The commit with this id as the screen shows it, to quote or reply to. A
+     * screen with no commits of its own, such as Notifications, has none, so
+     * Edit on a turned-down quote or reply opens the commit's page instead
+     * (see ShowsCommits).
+     */
+    protected function shownCommit(string $id): ?Commit
+    {
+        return null;
+    }
+
+    /**
      * The sheet has gone, after showing $view. A screen whose own composer handed it a draft takes it back.
      */
     protected function commitSheetGone(string $view): void

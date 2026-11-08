@@ -7,6 +7,7 @@
     @include('native.partials.error')
     @include('native.partials.refresh-failed')
     @include('native.partials.commit-sheet')
+    @include('native.partials.image-viewer')
     @include('native.partials.live-stream-sheet')
 
     <native:column class="w-full px-4 py-3 bg-theme-surface">

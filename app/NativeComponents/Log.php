@@ -346,14 +346,6 @@ class Log extends NativeComponent
     }
 
     /**
-     * Search opens on the Log's own stack, so back comes here.
-     */
-    public function openSearch(): void
-    {
-        $this->openInTab('/search');
-    }
-
-    /**
      * Shows a log, from a link such as the empty Following log's Trending, and
      * the pager follows. The log you're on goes back to its top.
      */

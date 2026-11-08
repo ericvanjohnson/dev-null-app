@@ -205,5 +205,3 @@
         @endif
     @endif
 </native:bottom-sheet>
-
-@include('native.partials.image-viewer')

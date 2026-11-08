@@ -10,13 +10,13 @@ beforeEach(function () {
 });
 
 /**
- * Each tab as label => [icon, Material variant].
+ * Each tab as label => [icon, Material variant], leaving out the side rail's Search and commit button.
  *
  * @return array<string, array{0: ?string, 1: ?string}>
  */
 function tabIcons(TestableComponent $screen): array
 {
-    return collect(findNodes($screen->tree(), fn (array $node): bool => ($node['type'] ?? null) === 'bottom_nav_item'))
+    return collect(findNodes($screen->tree(), fn (array $node): bool => ($node['type'] ?? null) === 'bottom_nav_item' && ! ($node['props']['presentation_only'] ?? false)))
         ->mapWithKeys(fn (array $tab): array => [$tab['props']['label'] => [$tab['props']['icon'] ?? null, $tab['props']['material_variant'] ?? null]])
         ->all();
 }

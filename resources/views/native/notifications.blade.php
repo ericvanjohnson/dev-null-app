@@ -2,6 +2,7 @@
     @include('native.partials.error')
     @include('native.partials.refresh-failed')
     @include('native.partials.push-prompt')
+    @include('native.partials.commit-sheet')
 
     {{--
         The filters as pages you swipe between, as on the Log: the one you're on and one either side, which show the

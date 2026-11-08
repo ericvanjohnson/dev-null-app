@@ -22,6 +22,15 @@ use App\NativeComponents\Layouts\TabsLayout;
 trait OpensInTab
 {
     /**
+     * Search opens on this tab's own stack, so back comes here. The Log's
+     * nav bar and the side rail's Search both press it.
+     */
+    public function openSearch(): void
+    {
+        $this->openInTab('/search');
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      */
     protected function openInTab(string $path, array $data = []): void
