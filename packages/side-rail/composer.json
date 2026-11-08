@@ -1,0 +1,26 @@
+{
+    "name": "devnull/side-rail",
+    "description": "The left-hand column and round new-commit button the devnull app shows on wide screens",
+    "type": "nativephp-plugin",
+    "version": "1.0.0",
+    "license": "MIT",
+    "require": {
+        "php": "^8.3",
+        "nativephp/mobile": "^4.6.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Devnull\\SideRail\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Devnull\\SideRail\\SideRailServiceProvider"
+            ]
+        },
+        "nativephp": {
+            "manifest": "nativephp.json"
+        }
+    }
+}

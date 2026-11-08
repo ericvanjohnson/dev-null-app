@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "745d59f03866816f94bab0b20f027a25",
+    "content-hash": "16fe9722c1fa989c06296c3453ad8ed1",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -423,6 +423,42 @@
                 "MIT"
             ],
             "description": "One-to-one WebRTC calls for the devnull app, speaking the same protocol as dev-null.sh's browser calls",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "devnull/side-rail",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "packages/side-rail",
+                "reference": "8599662a8b065f2c3cf5a2b8155c43c6209b4a1c"
+            },
+            "require": {
+                "nativephp/mobile": "^4.6.1",
+                "php": "^8.3"
+            },
+            "type": "nativephp-plugin",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Devnull\\SideRail\\SideRailServiceProvider"
+                    ]
+                },
+                "nativephp": {
+                    "manifest": "nativephp.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Devnull\\SideRail\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "The left-hand column and round new-commit button the devnull app shows on wide screens",
             "transport-options": {
                 "relative": true
             }

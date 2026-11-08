@@ -1,0 +1,16 @@
+{
+    "namespace": "SideRail",
+    "platforms": [
+        "ios"
+    ],
+    "bridge_functions": [],
+    "events": [],
+    "ios": {
+        "min_version": "18.0",
+        "init_function": "registerDevnullSideRail",
+        "dependencies": {
+            "swift_packages": [],
+            "pods": []
+        }
+    }
+}
